@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4a9c4a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MTS Collector">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon.png">
+<title>MTS Data Collector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root { –btn-color: #5cb85c; }
+
+body {
+font-family: ‘Times New Roman’, Times, serif;
+background: #f0f0f0;
+min-height: 100dvh;
+display: flex;
+flex-direction: column;
+overflow: hidden;
+}
+
+/* STATUS BAR */
+.status-bar {
+background: #fff;
+border-bottom: 1px solid #ddd;
+padding: 10px 14px 8px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+flex-shrink: 0;
+gap: 8px;
+}
+.obs-pill {
+background: #4a9c4a;
+color: white;
+font-size: 14px;
+font-weight: 700;
+padding: 5px 14px;
+border-radius: 20px;
+white-space: nowrap;
+}
+.timer-block { display: flex; align-items: center; gap: 7px; }
+.timer-display {
+font-size: 22px;
+font-weight: 700;
+color: #333;
+font-variant-numeric: tabular-nums;
+min-width: 60px;
+text-align: center;
+cursor: pointer;
+}
+.timer-display.running { color: #2a7a2a; }
+.timer-display.urgent { color: #c00; animation: blink 0.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.btn-timer {
+font-size: 12px; font-weight: 700;
+padding: 6px 13px; border-radius: 8px;
+border: 2px solid #4a9c4a; background: #fff; color: #4a9c4a; cursor: pointer;
+}
+.btn-timer:active { background: #e8f5e8; }
+.btn-timer.running { background: #4a9c4a; color: #fff; }
+.interval-select {
+font-size: 12px; font-weight: 600;
+padding: 5px 7px; border-radius: 8px;
+border: 2px solid #ccc; background: #fff; color: #555; cursor: pointer;
+}
+.custom-select-wrap { position: relative; flex-shrink: 0; }
+.custom-select-btn {
+display: flex; align-items: center; gap: 5px;
+font-size: 12px; font-weight: 600;
+padding: 5px 8px; border-radius: 8px;
+border: 2px solid #ccc; background: #fff; color: #555;
+cursor: pointer; white-space: nowrap;
+}
+.custom-select-btn:active { background: #f0f0f0; }
+.csb-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.2); flex-shrink:0; }
+.csb-arrow { font-size: 10px; color: #999; }
+.custom-select-menu {
+display: none; position: absolute; top: calc(100% + 4px); left: 0;
+background: #fff; border: 1.5px solid #ddd; border-radius: 10px;
+box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+z-index: 500; min-width: 130px; overflow: hidden;
+}
+.custom-select-menu.open { display: block; }
+.cso {
+display: flex; align-items: center; gap: 8px;
+padding: 9px 12px; font-size: 13px; font-weight: 500; color: #333;
+cursor: pointer;
+}
+.cso:active { background: #f5f5f5; }
+.cso-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.2); flex-shrink:0; }
+
+/* INTERVAL BAR */
+.interval-bar-wrap { height: 5px; background: #ddd; flex-shrink: 0; }
+.interval-bar-fill { height: 100%; background: #4a9c4a; transition: width 0.9s linear; }
+.interval-bar-fill.urgent { background: #c00; }
+
+/* DOTS */
+.screen-dots {
+display: flex; justify-content: center; align-items: center;
+gap: 6px; padding: 8px 16px 4px; flex-shrink: 0; background: #f0f0f0;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: all 0.2s; cursor: pointer; }
+.dot.filled { background: #4a9c4a; }
+.dot.active { width: 22px; border-radius: 4px; background: #2a7a2a; }
+
+/* CATEGORY HEADER */
+.category-header {
+margin: 10px 12px 6px;
+background: #d2b48c;
+border: 2.5px solid #a0845c;
+border-radius: 14px;
+padding: 14px 16px;
+text-align: center;
+font-size: 26px;
+font-weight: 400;
+color: #111;
+flex-shrink: 0;
+}
+
+/* GRID */
+.choices-wrap {
+flex: 1; overflow-y: auto;
+padding: 0 12px 10px;
+display: flex; flex-direction: column; gap: 8px;
+}
+.choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice-btn {
+background: var(–btn-color);
+border: 2.5px solid #2a6a2a;
+border-radius: 14px;
+cursor: pointer;
+display: flex; align-items: center; justify-content: center;
+min-height: 86px;
+transition: transform 0.07s, background 0.08s;
+-webkit-user-select: none; user-select: none;
+}
+.choice-btn:active { transform: scale(0.93); filter: brightness(0.85); }
+.choice-btn.selected { background: #2a6a2a; border-color: #1a4a1a; }
+.choice-btn.wide { grid-column: span 2; min-height: 74px; }
+.choice-code { font-size: 26px; font-weight: 500; color: #000; text-align: center; padding: 8px; line-height: 1.1; }
+
+/* MULTI HINT */
+.multi-hint { text-align: center; font-size: 12px; color: #666; flex-shrink: 0; padding: 0 12px 2px; }
+
+/* NOTES */
+.notes-wrap { flex-shrink: 0; padding: 4px 12px 6px; display: flex; flex-direction: column; gap: 4px; }
+.notes-label { font-size: 12px; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+textarea.notes-input {
+border: 2px solid #bbb; border-radius: 10px; padding: 9px 12px;
+font-size: 14px; resize: none; height: 60px; background: #fff; outline: none; color: #222;
+}
+textarea.notes-input:focus { border-color: #4a9c4a; }
+
+/* BOTTOM BAR */
+.bottom-bar { flex-shrink: 0; padding: 8px 12px 12px; }
+.btn-next {
+width: 100%; background: #4a9c4a; color: #fff;
+font-size: 18px; font-weight: 700; border: none; border-radius: 14px;
+padding: 15px; cursor: pointer;
+}
+.btn-next:active { background: #2a7a2a; }
+.btn-next.record { background: #2a6a2a; }
+
+/* DATA SCREEN */
+.data-screen { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.data-top { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.data-title { font-size: 20px; font-weight: 700; color: #222; }
+.btn-export {
+background: #e09000; color: #fff; font-size: 13px; font-weight: 700;
+padding: 8px 16px; border-radius: 10px; border: none; cursor: pointer;
+}
+.btn-export:active { background: #b87000; }
+.obs-card { background: #fff; border: 2px solid #ddd; border-radius: 14px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px; }
+.obs-card-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
+.obs-card-top span:first-child { color: #4a9c4a; }
+.obs-card-top span:last-child { color: #888; }
+.obs-rows { display: flex; flex-direction: column; gap: 3px; }
+.obs-row { display: flex; gap: 6px; font-size: 13px; }
+.obs-row-cat { color: #888; min-width: 76px; flex-shrink: 0; text-transform: capitalize; }
+.obs-row-val { color: #222; font-weight: 600; }
+.obs-note-text { color: #888; font-style: italic; font-size: 12px; }
+.empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 16px; line-height: 2; }
+.btn-new {
+background: #4a9c4a; color: #fff; font-size: 18px; font-weight: 700;
+border: none; border-radius: 14px; padding: 15px; cursor: pointer; width: 100%; flex-shrink: 0;
+}
+.btn-new:active { background: #2a7a2a; }
+
+/* TOAST */
+.toast {
+position: fixed; bottom: 30px; left: 50%;
+transform: translateX(-50%) translateY(20px);
+background: #222; color: #fff; font-size: 14px; font-weight: 600;
+padding: 11px 22px; border-radius: 24px; opacity: 0;
+transition: all 0.25s; pointer-events: none; white-space: nowrap; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.slide-in { animation: slideIn 0.16s ease-out; }
+@keyframes slideIn { from { opacity:0; transform:translateX(28px); } to { opacity:1; transform:translateX(0); } }
+
+/* DEFINITION MODAL */
+.modal-backdrop {
+position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+z-index: 1000; display: flex; align-items: flex-end;
+opacity: 0; transition: opacity 0.2s; pointer-events: none;
+}
+.modal-backdrop.show { opacity: 1; pointer-events: all; }
+.modal-sheet {
+background: #fff; width: 100%; border-radius: 20px 20px 0 0;
+padding: 20px 20px 20px; display: flex; flex-direction: column; gap: 12px;
+transform: translateY(100%); transition: transform 0.25s ease;
+max-height: 40dvh; overflow-y: auto;
+padding-bottom: max(20px, env(safe-area-inset-bottom));
+box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+}
+.modal-sheet::after {
+content: ‘’;
+display: block;
+position: fixed;
+bottom: 0; left: 0; right: 0;
+height: 100px;
+background: #fff;
+z-index: -1;
+}
+.modal-backdrop.show .modal-sheet { transform: translateY(0); }
+.modal-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto -4px; }
+.modal-code { font-size: 34px; font-weight: 800; color: #2a7a2a; line-height: 1; }
+.modal-name { font-size: 18px; font-weight: 700; color: #222; margin-top: -4px; }
+.modal-def { font-size: 15px; color: #444; line-height: 1.6; }
+.modal-example { font-size: 13px; color: #666; line-height: 1.5; background: #f5f5f5; border-radius: 10px; padding: 10px 12px; font-style: italic; }
+
+.choice-btn.pressing { background: #3a8a3a !important; }
+</style>
+
+</head>
+<body>
+
+<div class="status-bar">
+  <div class="obs-pill" id="obsCount">OBS: 0</div>
+  <div class="timer-block">
+    <div class="custom-select-wrap" id="colorPickerWrap">
+      <button class="custom-select-btn" id="colorPickerBtn" onclick="toggleColorPicker()">
+        <span class="csb-dot" id="colorPickerDot" style="background:#5cb85c"></span>
+        <span class="csb-label" id="colorPickerLabel">Classic</span>
+        <span class="csb-arrow">▾</span>
+      </button>
+      <div class="custom-select-menu" id="colorPickerMenu">
+        <div class="cso" onclick="setButtonColor('#5cb85c','Classic')"><span class="cso-dot" style="background:#5cb85c"></span>Classic</div>
+        <div class="cso" onclick="setButtonColor('#3a9a3a','Forest')"><span class="cso-dot" style="background:#3a9a3a"></span>Forest</div>
+        <div class="cso" onclick="setButtonColor('#7dc97d','Sage')"><span class="cso-dot" style="background:#7dc97d"></span>Sage</div>
+        <div class="cso" onclick="setButtonColor('#2e7d32','Deep')"><span class="cso-dot" style="background:#2e7d32"></span>Deep</div>
+        <div class="cso" onclick="setButtonColor('#a5d6a7','Mint')"><span class="cso-dot" style="background:#a5d6a7"></span>Mint</div>
+        <div class="cso" onclick="setButtonColor('#558b2f','Olive')"><span class="cso-dot" style="background:#558b2f"></span>Olive</div>
+        <div class="cso" onclick="setButtonColor('#80b280','Muted')"><span class="cso-dot" style="background:#80b280"></span>Muted</div>
+        <div class="cso" onclick="setButtonColor('#1b5e20','Pine')"><span class="cso-dot" style="background:#1b5e20"></span>Pine</div>
+      </div>
+    </div>
+    <select class="interval-select" id="intervalSelect" onchange="setIntervalSec()">
+      <option value="15">15s</option>
+      <option value="30" selected>30s</option>
+      <option value="60">60s</option>
+      <option value="custom">…</option>
+    </select>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <button class="btn-timer" id="timerBtn" onclick="toggleTimer()">START</button>
+  </div>
+</div>
+
+<div class="interval-bar-wrap">
+  <div class="interval-bar-fill" id="intervalBar" style="width:100%"></div>
+</div>
+
+<div class="screen-dots" id="screenDots"></div>
+
+<div id="mainArea" style="flex:1;display:flex;flex-direction:column;overflow:hidden;"></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- DEFINITION MODAL -->
+
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-handle"></div>
+    <div class="modal-code" id="modalCode"></div>
+    <div class="modal-name" id="modalName"></div>
+    <div class="modal-def" id="modalDef"></div>
+    <div class="modal-example" id="modalExample" style="display:none"></div>
+
+  </div>
+</div>
+
+<script>
+// ── DEFINITIONS ──
+const DEFINITIONS = {
+  // Student Behavior
+  "EAM":    { name: "Engaged with Academic Materials", def: "Student is actively manipulating or using non-electronic academic materials in a way that suggests engagement with the task.", example: "Writing, reading a book, using manipulatives, completing a worksheet" },
+  "EE":     { name: "Engaged with Electronics", def: "Student is actively using an electronic device in a task-related or leisure manner.", example: "Using a tablet, computer, phone, or electronic game" },
+  "AI":     { name: "Attending to Instruction", def: "Student is actively responding to or focused on teacher instruction — looking at teacher, answering questions, or following directions.", example: "Eye contact with teacher during lesson, raising hand, responding verbally" },
+  "SI":     { name: "Social Interaction", def: "Student is engaged in appropriate interaction with peers or adults.", example: "Talking with a peer, cooperative play, appropriate conversation with teacher" },
+  "PL":     { name: "Passive/Looking", def: "Student is oriented toward the activity or instruction but is not actively responding or participating.", example: "Watching others work, sitting quietly facing teacher but not responding" },
+  "DN":     { name: "Disengaged/Non-Attending", def: "Student is not oriented toward the task or instruction — staring off, unfocused, or doing nothing related to the task.", example: "Staring at the ceiling, head down, looking around the room aimlessly" },
+  // Grouping
+  "1:1":    { name: "One-to-One Instruction", def: "Student is receiving individual instruction with one teacher or adult — no other students are being taught simultaneously." },
+  "SG":     { name: "Small Group", def: "Student is in a group of 2–5 students receiving instruction together." },
+  "LG":     { name: "Large Group", def: "Student is in a group of 6 or more students receiving instruction together." },
+  "IND":    { name: "Independent Work", def: "Student is working independently and is not currently receiving direct instruction." },
+  "PEER":   { name: "Peer-Directed", def: "Student is engaged in a peer-directed activity without adult direction." },
+  "TRANS":  { name: "Transition", def: "Student is in a transition, waiting period, or break between activities." },
+  // Task Type
+  "ACAD":   { name: "Academic", def: "Task involves academic content areas.", example: "Reading, writing, math, science, social studies" },
+  "FUNC":   { name: "Functional/Life Skills", def: "Task involves functional or life skills instruction.", example: "Daily living, vocational tasks, self-care routines" },
+  "SOC":    { name: "Social Skills", def: "Task is specifically targeting social skills instruction." },
+  "PLAY":   { name: "Play/Leisure/Recreation", def: "Student is engaged in play, leisure, or recreational activity." },
+  "MOT":    { name: "Motor/Movement", def: "Task involves motor or movement activity.", example: "PE, gross motor, fine motor, sensory activities" },
+  "NONE":   { name: "No Task", def: "There is no defined task at this moment.", example: "Transition, waiting, unstructured time" },
+  // Teacher Proximity
+  "NEAR":   { name: "Near (0–3 ft)", def: "Teacher is within arm's reach of the student — 0 to 3 feet away." },
+  "CLOSE":  { name: "Close (3–10 ft)", def: "Teacher is nearby at a conversational distance — 3 to 10 feet away." },
+  "FAR":    { name: "Far (>10 ft)", def: "Teacher is in a distant area of the room — more than 10 feet away or in a different area." },
+  "OUT":    { name: "Out of Room", def: "Teacher is not present in the room at this moment." },
+  // Teacher Attention
+  "LOOK-S": { name: "Looking at Student", def: "Teacher's visual attention is directed at the observed student." },
+  "TALK-S": { name: "Talking to Student", def: "Teacher is verbally communicating directly to the observed student." },
+  "LOOK-A": { name: "Looking Away", def: "Teacher's gaze is directed away from the observed student." },
+  "TALK-O": { name: "Talking to Others", def: "Teacher is verbally communicating with someone other than the observed student." },
+  "LOOK-P": { name: "Looking at Phone/Device", def: "Teacher's visual attention is directed at a phone or electronic device." },
+  "PHYS":   { name: "Physical Contact/Guidance", def: "Teacher is making physical contact with or providing physical guidance to the student." },
+  // Teacher Interaction
+  "INST":   { name: "Instruction", def: "Teacher is providing direct instruction to the student.", example: "Teaching, explaining, demonstrating a skill or concept" },
+  "QUES":   { name: "Questioning", def: "Teacher is asking questions to elicit a response from the student.", example: "Comprehension questions, recall prompts" },
+  "FEED":   { name: "Feedback", def: "Teacher is providing feedback on student performance.", example: "Correction, praise, reinforcement" },
+  "PROMPT": { name: "Prompting", def: "Teacher is providing a prompt to support student responding.", example: "Verbal, gestural, or physical prompts" },
+  "MANGE":  { name: "Managing Behavior", def: "Teacher is addressing student behavior.", example: "Redirecting, behavior management, de-escalation" },
+  "CONV":   { name: "Conversation", def: "Teacher is engaged in social conversation with the student — not academic in nature." },
+  // Electronics
+  "TAB-ON":  { name: "Tablet On", def: "A tablet or iPad is powered on and accessible to the student." },
+  "TAB-OFF": { name: "Tablet Off", def: "A tablet or iPad is visible but powered off or locked." },
+  "COMP":    { name: "Computer", def: "A computer is powered on and accessible to the student." },
+  "PHONE":   { name: "Phone", def: "A phone is visible within the student's view." },
+  "TV":      { name: "Television/Screen", def: "A television or display screen is on with content displayed." },
+  "AAC":     { name: "AAC Device", def: "An AAC (Augmentative and Alternative Communication) device or app is available to the student." },
+  "NONE-E":  { name: "No Electronics", def: "No electronics are visible or available to the student at this moment." },
+  // Distractions
+  "LOUD":   { name: "Loud Noise", def: "There is a sudden or sustained loud noise in the environment that could interfere with engagement." },
+  "PEER-D": { name: "Peer Distraction", def: "Another student's disruptive behavior is visible or audible and could distract the observed student." },
+  "MOVE":   { name: "Movement", def: "There is significant movement or activity in the student's visual field that could cause distraction." },
+  "QUIET":  { name: "No Notable Distractions", def: "The environment is relatively quiet with no notable distractions at this moment." },
+};
+
+// ── LONG PRESS ──
+let longPressTimer = null;
+let longPressFired = false;
+const LONG_PRESS_MS = 500;
+
+function startLongPress(btn, code) {
+  longPressFired = false;
+  cancelLongPress();
+  btn.classList.add('pressing');
+  longPressTimer = setTimeout(() => {
+    longPressFired = true;
+    longPressTimer = null;
+    btn.classList.remove('pressing');
+    showDefinition(code);
+  }, LONG_PRESS_MS);
+}
+
+function cancelLongPress(btn) {
+  clearTimeout(longPressTimer);
+  longPressTimer = null;
+  longPressFired = false;
+  try { if (btn) btn.classList.remove('pressing'); } catch(e) {}
+}
+
+function showDefinition(code) {
+  const def = DEFINITIONS[code];
+  if (!def) return;
+  document.getElementById('modalCode').textContent = code;
+  document.getElementById('modalName').textContent = def.name;
+  document.getElementById('modalDef').textContent = def.def;
+  const ex = document.getElementById('modalExample');
+  if (def.example) { ex.textContent = 'e.g. ' + def.example; ex.style.display = 'block'; }
+  else { ex.style.display = 'none'; }
+  document.getElementById('modalBackdrop').classList.add('show');
+}
+
+function dismissModal() {
+  try { longPressFired = false; } catch(e) {}
+  document.getElementById('modalBackdrop').classList.remove('show');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalBackdrop')) dismissModal();
+}
+
+// Dismiss on touchend anywhere on the modal sheet or backdrop
+document.addEventListener('touchend', (e) => {
+  const backdrop = document.getElementById('modalBackdrop');
+  if (backdrop && backdrop.classList.contains('show')) {
+    dismissModal();
+  }
+}, { passive: true });
+
+// ── SOUND ENGINE ──
+let AC = null;
+function getAC() {
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { console.warn('AudioContext unavailable:', e); }
+  }
+  return AC;
+}
+
+// ── CHORD VOICINGS ──
+// From the chord chart: C#m7, D#m7, G#m7, B, Fm7b5, A, F#, D#m7b5, E
+// Each pool is [bass, mid-low, mid, mid-high, high, top] built from chord tones
+const CHORD_VOICINGS = [
+  { name: 'C#m7',   pool: [138.59, 185.00, 207.65, 277.18, 311.13, 415.30] },  // C# E G# B C# E
+  { name: 'D#m7',   pool: [155.56, 185.00, 233.08, 311.13, 349.23, 466.16] },  // D# F# A# C# D# F#
+  { name: 'G#m7',   pool: [207.65, 233.08, 311.13, 392.00, 415.30, 466.16] },  // G# A# D# F G# A#
+  { name: 'B',      pool: [246.94, 311.13, 369.99, 493.88, 369.99, 246.94] },  // B D# F# B F# D#
+  { name: 'Fm7b5',  pool: [174.61, 207.65, 246.94, 311.13, 369.99, 415.30] },  // F Ab B Eb F Ab
+  { name: 'A',      pool: [220.00, 277.18, 329.63, 440.00, 329.63, 220.00] },  // A C# E A E C#
+  { name: 'F#',     pool: [185.00, 246.94, 277.18, 369.99, 415.30, 493.88] },  // F# A# C# F# C# A#
+  { name: 'D#m7b5', pool: [155.56, 185.00, 220.00, 293.66, 369.99, 440.00] },  // D# F# A C D# F#
+  { name: 'E',      pool: [164.81, 207.65, 246.94, 329.63, 392.00, 493.88] },  // E G# B E B G#
+];
+
+let lastChordIdx = -1;
+let SCREEN_NOTES = [];
+
+// Fingerstyle picking pattern indices into the pool (8 screens)
+// Moves like a guitar: bass → jump → drop → step → drop → return → settle → resolve
+const PICK_PATTERN = [0, 3, 1, 4, 2, 3, 1, 5];
+
+function pickNewChord() {
+  let idx;
+  do { idx = Math.floor(Math.random() * CHORD_VOICINGS.length); } while (idx === lastChordIdx);
+  lastChordIdx = idx;
+  const pool = CHORD_VOICINGS[idx].pool;
+  SCREEN_NOTES = PICK_PATTERN.map(i => pool[i] || pool[0]);
+}
+
+// Init with a random chord on load
+pickNewChord();
+if (!SCREEN_NOTES.length) SCREEN_NOTES = [349.23,523.25,440.00,587.33,392.00,523.25,466.16,698.46];
+
+// Electric guitar pluck: sawtooth + harmonics + distortion + cabinet EQ
+function pluckGuitar(freq, duration, volume) {
+  if (volume === undefined) volume = 0.5;
+  const ctx = getAC(); if (!ctx) return;
+  try {
+    const t = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'square';
+    osc1.frequency.setValueAtTime(freq, t);
+    osc2.frequency.setValueAtTime(freq * 2, t);
+    osc1.frequency.exponentialRampToValueAtTime(freq * 0.995, t + 0.03);
+    osc2.frequency.exponentialRampToValueAtTime(freq * 2 * 0.995, t + 0.03);
+
+    const g1 = ctx.createGain(); g1.gain.value = 0.7;
+    const g2 = ctx.createGain(); g2.gain.value = 0.3;
+    const mix = ctx.createGain();
+    osc1.connect(g1); osc2.connect(g2);
+    g1.connect(mix); g2.connect(mix);
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(volume, t + 0.008);
+    env.gain.exponentialRampToValueAtTime(volume * 0.35, t + 0.06);
+    env.gain.exponentialRampToValueAtTime(volume * 0.12, t + 0.25);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    mix.connect(env);
+
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = (i * 2) / 256 - 1;
+      curve[i] = ((Math.PI + 80) * x) / (Math.PI + 80 * Math.abs(x));
+    }
+    const dist = ctx.createWaveShaper();
+    dist.curve = curve;
+    dist.oversample = '2x';
+
+    const midBoost = ctx.createBiquadFilter();
+    midBoost.type = 'peaking';
+    midBoost.frequency.value = 900;
+    midBoost.gain.value = 5;
+    midBoost.Q.value = 1.2;
+
+    const hiCut = ctx.createBiquadFilter();
+    hiCut.type = 'lowpass';
+    hiCut.frequency.value = 3200;
+    hiCut.Q.value = 0.7;
+
+    env.connect(dist);
+    dist.connect(midBoost);
+    midBoost.connect(hiCut);
+    hiCut.connect(ctx.destination);
+
+    osc1.start(t); osc1.stop(t + duration + 0.05);
+    osc2.start(t); osc2.stop(t + duration + 0.05);
+  } catch(e) { console.warn('Audio error:', e); }
+}
+
+function playTap(screenIdx) {
+  const freq = SCREEN_NOTES[screenIdx] || 523.25;
+  pluckGuitar(freq, 0.55, 0.45);
+}
+
+function playAdvance(screenIdx) {
+  // Hammer-on style: quick second note slightly after
+  const f1 = SCREEN_NOTES[screenIdx] || 523.25;
+  const f2 = (SCREEN_NOTES.length > 0 ? SCREEN_NOTES[(screenIdx + 1) % SCREEN_NOTES.length] : null) || f1;
+  pluckGuitar(f1, 0.18, 0.3);
+  setTimeout(() => pluckGuitar(f2, 0.45, 0.38), 80);
+}
+
+function playRecord() {
+  // Strum the chord notes from the current voicing's pool (root, 3rd, 5th)
+  const pool = CHORD_VOICINGS[lastChordIdx].pool;
+  const strumNotes = [pool[0], pool[2], pool[3]]; // bass, mid, top
+  strumNotes.forEach((freq, i) => {
+    setTimeout(() => pluckGuitar(freq, 1.2, 0.36), i * 50);
+  });
+  // Pick next chord for the NEXT observation
+  setTimeout(() => pickNewChord(), 200);
+}
+
+function playMultiToggle(screenIdx, isOn) {
+  const freq = SCREEN_NOTES[screenIdx] || 523.25;
+  // On: normal pluck. Off: muted thud (short duration, no dist)
+  pluckGuitar(isOn ? freq : freq * 0.5, isOn ? 0.4 : 0.12, isOn ? 0.4 : 0.25);
+}
+
+function playNext(screenIdx) {
+  const f1 = SCREEN_NOTES[screenIdx] || 523.25;
+  const f2 = (SCREEN_NOTES.length > 0 ? SCREEN_NOTES[(screenIdx + 1) % SCREEN_NOTES.length] : null) || f1;
+  pluckGuitar(f1, 0.2, 0.32);
+  setTimeout(() => pluckGuitar(f2, 0.5, 0.4), 90);
+}
+
+function resumeAC() { try { const ac = getAC(); if (ac && ac.state === 'suspended') ac.resume(); } catch(e) {} }
+
+const SCREENS = [
+  { id:'student',     title:'Student Behavior',      multi:false, hasNotes:false,
+    choices:[{code:'EAM'},{code:'EE'},{code:'AI'},{code:'SI'},{code:'PL'},{code:'DN'}] },
+  { id:'grouping',    title:'Grouping',               multi:false, hasNotes:false,
+    choices:[{code:'1:1'},{code:'SG'},{code:'LG'},{code:'IND'},{code:'PEER'},{code:'TRANS'}] },
+  { id:'tasktype',    title:'Task Type',              multi:false, hasNotes:false,
+    choices:[{code:'ACAD'},{code:'FUNC'},{code:'SOC'},{code:'PLAY'},{code:'MOT'},{code:'NONE'}] },
+  { id:'proximity',   title:'Teacher Proximity',      multi:false, hasNotes:false,
+    choices:[{code:'NEAR'},{code:'CLOSE'},{code:'FAR'},{code:'OUT'}] },
+  { id:'attention',   title:'Teacher Attention',      multi:false, hasNotes:false,
+    choices:[{code:'LOOK-S'},{code:'TALK-S'},{code:'LOOK-A'},{code:'TALK-O'},{code:'LOOK-P'},{code:'PHYS'}] },
+  { id:'interaction', title:'Teacher Interaction',    multi:false, hasNotes:false,
+    choices:[{code:'INST'},{code:'QUES'},{code:'FEED'},{code:'PROMPT'},{code:'MANGE'},{code:'CONV'},{code:'NONE'}] },
+  { id:'electronics', title:'Electronics Present',    multi:true,  hasNotes:false,
+    choices:[{code:'TAB-ON'},{code:'TAB-OFF'},{code:'COMP'},{code:'PHONE'},{code:'TV'},{code:'AAC'},{code:'NONE-E'}] },
+  { id:'distractions',title:'Distractions',           multi:false, hasNotes:false,
+    choices:[{code:'LOUD'},{code:'PEER-D'},{code:'MOVE'},{code:'QUIET'}] }
+];
+
+let cur = 0;
+let sel = {};
+let nts = {};
+let obs = [];
+let running = false;
+let totalSec = 0;
+let intSec = 30;
+let intRem = 30;
+let ticker = null;
+
+SCREENS.forEach(s => { sel[s.id] = new Set(); nts[s.id] = ''; });
+
+// TIMER
+function toggleTimer() { running ? pause() : play(); }
+function play() {
+  running = true;
+  document.getElementById('timerBtn').textContent = 'PAUSE';
+  document.getElementById('timerBtn').classList.add('running');
+  ticker = setInterval(() => {
+    totalSec++; intRem--;
+    refreshTimerUI();
+    if (intRem <= 0) { intRem = intSec; alertNow(); }
+  }, 1000);
+}
+function pause() {
+  running = false; clearInterval(ticker);
+  document.getElementById('timerBtn').textContent = 'START';
+  document.getElementById('timerBtn').classList.remove('running');
+}
+function refreshTimerUI() {
+  const m = String(Math.floor(totalSec/60)).padStart(2,'0');
+  const s = String(totalSec%60).padStart(2,'0');
+  const d = document.getElementById('timerDisplay');
+  d.textContent = `${m}:${s}`;
+  d.className = 'timer-display' + (running ? ' running' : '');
+  const pct = (intRem / intSec) * 100;
+  const bar = document.getElementById('intervalBar');
+  bar.style.width = pct + '%';
+  bar.className = 'interval-bar-fill' + (pct < 20 ? ' urgent' : '');
+}
+function alertNow() {
+  showToast('⏱ Record observation now!');
+  const d = document.getElementById('timerDisplay');
+  d.classList.add('urgent');
+  setTimeout(() => { if(d) d.classList.remove('urgent'); }, 2500);
+}
+function toggleColorPicker() {
+  document.getElementById('colorPickerMenu').classList.toggle('open');
+}
+
+function setButtonColor(color, label) {
+  document.documentElement.style.setProperty('--btn-color', color);
+  document.getElementById('colorPickerDot').style.background = color;
+  document.getElementById('colorPickerLabel').textContent = label;
+  document.getElementById('colorPickerMenu').classList.remove('open');
+  renderMain();
+}
+
+// Close picker if tapping outside
+document.addEventListener('touchstart', (e) => {
+  const wrap = document.getElementById('colorPickerWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('colorPickerMenu').classList.remove('open');
+  }
+});
+
+function setIntervalSec() {
+  const v = document.getElementById('intervalSelect').value;
+  if (v === 'custom') { const n = parseInt(prompt('Seconds:','30')); if(n>0) intSec=n; }
+  else intSec = parseInt(v);
+  intRem = intSec; refreshTimerUI();
+}
+
+// DOTS
+function renderDots() {
+  document.getElementById('screenDots').innerHTML =
+    Array.from({length: SCREENS.length + 1}, (_,i) => {
+      const filled = i < SCREENS.length && sel[SCREENS[i].id].size > 0;
+      const active = i === cur;
+      return `<div class="dot${active?' active':filled?' filled':''}" onclick="goTo(${i})"></div>`;
+    }).join('');
+}
+
+// NAVIGATION
+function goTo(idx) { cur = idx; renderDots(); renderMain(); }
+function advance() {
+  if (cur < SCREENS.length - 1) goTo(cur + 1);
+  else record();
+}
+
+// MAIN
+function renderMain() {
+  const area = document.getElementById('mainArea');
+  area.innerHTML = '';
+  if (cur === SCREENS.length) { renderDataScreen(area); return; }
+  const screen = SCREENS[cur];
+  const s = sel[screen.id];
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className = 'category-header slide-in';
+  hdr.textContent = screen.title;
+  area.appendChild(hdr);
+
+  // Grid wrapper
+  const wrap = document.createElement('div');
+  wrap.className = 'choices-wrap slide-in';
+
+  const grid = document.createElement('div');
+  grid.className = 'choices-grid';
+
+  screen.choices.forEach((c, i) => {
+    const isLast = i === screen.choices.length - 1;
+    const isWide = screen.choices.length % 2 === 1 && isLast;
+    const btn = document.createElement('div');
+    btn.className = 'choice-btn' + (s.has(c.code) ? ' selected' : '') + (isWide ? ' wide' : '');
+    btn.innerHTML = `<span class="choice-code">${c.code}</span>`;
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startLongPress(btn, c.code);
+    }, { passive: false });
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (longPressFired) { dismissModal(); return; }
+      if (longPressTimer) { cancelLongPress(btn); handleChoice(screen, c.code); }
+    }, { passive: false });
+    btn.addEventListener('touchcancel', () => { cancelLongPress(btn); });
+    btn.addEventListener('touchmove', (e) => { e.preventDefault(); cancelLongPress(btn); }, { passive: false });
+    grid.appendChild(btn);
+  });
+
+  wrap.appendChild(grid);
+
+  if (screen.hasNotes) {
+    const nw = document.createElement('div');
+    nw.className = 'notes-wrap';
+    nw.innerHTML = `<span class="notes-label">Other distractions (notes)</span>
+      <textarea class="notes-input" placeholder="Describe…">${nts[screen.id]||''}</textarea>`;
+
+```
+nw.querySelector('textarea').addEventListener('input', e => { nts[screen.id] = e.target.value; });
+wrap.appendChild(nw);
+```
+
+}
+
+area.appendChild(wrap);
+
+// Multi-select: show hint + Next button
+if (screen.multi) {
+const hint = document.createElement(‘div’);
+hint.className = ‘multi-hint’;
+hint.textContent = ‘Select all that apply’;
+area.appendChild(hint);
+
+```
+const bb = document.createElement('div');
+bb.className = 'bottom-bar';
+const nb = document.createElement('button');
+nb.className = 'btn-next' + (cur === SCREENS.length - 1 ? ' record' : '');
+nb.textContent = cur === SCREENS.length - 1 ? '✓ Record Observation' : 'Next →';
+nb.addEventListener('click', () => {
+  resumeAC();
+  if (cur === SCREENS.length - 1) record(); else { try { playNext(cur); } catch(e) {} advance(); }
+});
+bb.appendChild(nb);
+area.appendChild(bb);
+```
+
+}
+}
+
+function handleChoice(screen, code) {
+try { resumeAC(); } catch(e) {}
+const idx = SCREENS.indexOf(screen);
+const s = sel[screen.id];
+if (screen.multi) {
+const wasOn = s.has(code);
+wasOn ? s.delete(code) : s.add(code);
+try { playMultiToggle(idx, !wasOn); } catch(e) {}
+document.querySelectorAll(’.choice-btn’).forEach(btn => {
+const c = btn.querySelector(’.choice-code’).textContent;
+btn.classList.toggle(‘selected’, s.has(c));
+});
+renderDots();
+} else {
+try { playTap(idx); } catch(e) {}
+s.clear(); s.add(code);
+renderDots();
+setTimeout(() => { try { playAdvance(idx); } catch(e) {} advance(); }, 90);
+}
+}
+
+function record() {
+resumeAC();
+playRecord();
+const now = new Date();
+// Round to nearest 15-second interval
+const totalSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+const rounded = Math.round(totalSeconds / 15) * 15;
+const rH = Math.floor(rounded / 3600) % 24;
+const rM = Math.floor((rounded % 3600) / 60);
+const rS = rounded % 60;
+const ampm = rH >= 12 ? ‘PM’ : ‘AM’;
+const h12 = rH % 12 || 12;
+const time = `${h12}:${String(rM).padStart(2,'0')}:${String(rS).padStart(2,'0')} ${ampm} PST`;
+const snap = {};
+SCREENS.forEach(s => { snap[s.id] = […sel[s.id]]; });
+const allNotes = Object.values(nts).filter(Boolean).join(’; ’);
+obs.push({ selections: snap, notes: allNotes, time, elapsed: totalSec });
+document.getElementById(‘obsCount’).textContent = `OBS: ${obs.length}`;
+SCREENS.forEach(s => { sel[s.id] = new Set(); nts[s.id] = ‘’; });
+showToast(`✓ Observation #${obs.length} saved!`);
+setTimeout(() => goTo(0), 300);
+}
+
+function renderDataScreen(area) {
+const wrap = document.createElement(‘div’);
+wrap.className = ‘data-screen slide-in’;
+
+const top = document.createElement(‘div’);
+top.className = ‘data-top’;
+top.innerHTML = `<span class="data-title">Recorded Data</span>`;
+if (obs.length > 0) {
+const eb = document.createElement(‘button’);
+eb.className = ‘btn-export’; eb.textContent = ‘↓ CSV’; eb.onclick = exportCSV;
+top.appendChild(eb);
+}
+wrap.appendChild(top);
+
+if (!obs.length) {
+wrap.insertAdjacentHTML(‘beforeend’,’<div class="empty-state">No observations yet.<br>Complete all 8 screens<br>to record one.</div>’);
+} else {
+obs.forEach((o, i) => {
+const card = document.createElement(‘div’);
+card.className = ‘obs-card’;
+const rows = SCREENS.map(s => {
+const v = o.selections[s.id];
+if (!v || !v.length) return ‘’;
+return `<div class="obs-row"><span class="obs-row-cat">${s.id}</span><span class="obs-row-val">${v.join(', ')}</span></div>`;
+}).join(’’);
+card.innerHTML = `<div class="obs-card-top"><span>OBS #${i+1}</span><span>${o.time}</span></div> <div class="obs-rows">${rows}</div> ${o.notes ?`<div class="obs-note-text">📝 ${o.notes}</div>`: ''}`;
+wrap.appendChild(card);
+});
+}
+
+const nb = document.createElement(‘button’);
+nb.className = ‘btn-new’; nb.textContent = ‘+ New Observation’;
+nb.onclick = () => goTo(0);
+wrap.appendChild(nb);
+area.appendChild(wrap);
+}
+
+function exportCSV() {
+const header = [‘Obs#’,‘Time’,‘Elapsed(s)’,…SCREENS.map(s=>s.title),‘Notes’];
+const rows = obs.map((o,i) => [i+1, o.time, o.elapsed, …SCREENS.map(s=>(o.selections[s.id]||[]).join(’|’)), o.notes||’’]);
+const csv = [header,…rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(’,’)).join(’\n’);
+const a = document.createElement(‘a’);
+a.href = URL.createObjectURL(new Blob([csv],{type:‘text/csv’}));
+a.download = `mts_${new Date().toISOString().slice(0,10)}.csv`;
+a.click();
+showToast(‘CSV downloaded!’);
+}
+
+function showToast(msg) {
+const t = document.getElementById(‘toast’);
+t.textContent = msg;
+t.classList.add(‘show’);
+setTimeout(() => t.classList.remove(‘show’), 2200);
+}
+
+renderDots();
+renderMain();
+
+// Register service worker for offline PWA support
+if (‘serviceWorker’ in navigator) {
+window.addEventListener(‘load’, () => {
+navigator.serviceWorker.register(‘sw.js’).catch(() => {});
+});
+}
+</script>
+
+</body>
+</html>
